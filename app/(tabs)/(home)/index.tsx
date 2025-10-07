@@ -1,161 +1,153 @@
-import React from "react";
-import { Stack, Link } from "expo-router";
-import { FlatList, Pressable, StyleSheet, View, Text, Alert, Platform } from "react-native";
-import { IconSymbol } from "@/components/IconSymbol";
-import { GlassView } from "expo-glass-effect";
-import { useTheme } from "@react-navigation/native";
 
-const ICON_COLOR = "#007AFF";
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { Stack, router } from 'expo-router';
+import { IconSymbol } from '@/components/IconSymbol';
+import { colors, commonStyles, buttonStyles } from '../../../styles/commonStyles';
+import { useAuth } from '../../../hooks/useAuth';
+import { useWorkouts } from '../../../hooks/useWorkouts';
+import AuthScreen from '../../../components/AuthScreen';
+import GroupCard from '../../../components/GroupCard';
 
 export default function HomeScreen() {
-  const theme = useTheme();
-  const modalDemos = [
-    {
-      title: "Standard Modal",
-      description: "Full screen modal presentation",
-      route: "/modal",
-      color: "#007AFF",
-    },
-    {
-      title: "Form Sheet",
-      description: "Bottom sheet with detents and grabber",
-      route: "/formsheet",
-      color: "#34C759",
-    },
-    {
-      title: "Transparent Modal",
-      description: "Overlay without obscuring background",
-      route: "/transparent-modal",
-      color: "#FF9500",
-    }
-  ];
+  const { user, loading: authLoading } = useAuth();
+  const { groups, workouts, loading: workoutsLoading } = useWorkouts();
 
-  const renderModalDemo = ({ item }: { item: (typeof modalDemos)[0] }) => (
-    <GlassView style={[
-      styles.demoCard,
-      Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-    ]} glassEffectStyle="regular">
-      <View style={[styles.demoIcon, { backgroundColor: item.color }]}>
-        <IconSymbol name="square.grid.3x3" color="white" size={24} />
+  if (authLoading) {
+    return (
+      <View style={commonStyles.centerContent}>
+        <Text style={commonStyles.text}>Loading...</Text>
       </View>
-      <View style={styles.demoContent}>
-        <Text style={[styles.demoTitle, { color: theme.colors.text }]}>{item.title}</Text>
-        <Text style={[styles.demoDescription, { color: theme.dark ? '#98989D' : '#666' }]}>{item.description}</Text>
-      </View>
-      <Link href={item.route as any} asChild>
-        <Pressable>
-          <GlassView style={[
-            styles.tryButton,
-            Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)' }
-          ]} glassEffectStyle="clear">
-            <Text style={[styles.tryButtonText, { color: theme.colors.primary }]}>Try It</Text>
-          </GlassView>
-        </Pressable>
-      </Link>
-    </GlassView>
-  );
+    );
+  }
 
-  const renderHeaderRight = () => (
-    <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
-    >
-      <IconSymbol name="plus" color={theme.colors.primary} />
-    </Pressable>
-  );
+  if (!user) {
+    return <AuthScreen />;
+  }
 
-  const renderHeaderLeft = () => (
-    <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
-    >
-      <IconSymbol
-        name="gear"
-        color={theme.colors.primary}
-      />
-    </Pressable>
-  );
+  const userGroups = groups.filter(group => group.members.includes(user.id));
+
+  const handleCreateGroup = () => {
+    router.push('/create-group');
+  };
+
+  const handleJoinGroup = () => {
+    router.push('/join-group');
+  };
+
+  const handleGroupPress = (groupId: string) => {
+    router.push(`/group/${groupId}`);
+  };
 
   return (
     <>
-      {Platform.OS === 'ios' && (
-        <Stack.Screen
-          options={{
-            title: "Building the app...",
-            headerRight: renderHeaderRight,
-            headerLeft: renderHeaderLeft,
-          }}
-        />
-      )}
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <FlatList
-          data={modalDemos}
-          renderItem={renderModalDemo}
-          keyExtractor={(item) => item.route}
-          contentContainerStyle={[
-            styles.listContainer,
-            Platform.OS !== 'ios' && styles.listContainerWithTabBar
-          ]}
-          contentInsetAdjustmentBehavior="automatic"
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
+      <Stack.Screen
+        options={{
+          title: 'FitGroup',
+          headerRight: () => (
+            <TouchableOpacity onPress={() => router.push('/profile')}>
+              <IconSymbol name="person.circle.fill" size={28} color={colors.primary} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <ScrollView style={commonStyles.container}>
+        <View style={styles.header}>
+          <Text style={commonStyles.title}>Welcome back, {user.name}!</Text>
+          <Text style={commonStyles.textSecondary}>
+            Ready to crush your fitness goals?
+          </Text>
+        </View>
+
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={[buttonStyles.primary, styles.actionButton]}
+            onPress={handleCreateGroup}
+          >
+            <IconSymbol name="plus.circle.fill" size={20} color={colors.card} />
+            <Text style={[commonStyles.buttonText, styles.actionButtonText]}>
+              Create Group
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[buttonStyles.outline, styles.actionButton]}
+            onPress={handleJoinGroup}
+          >
+            <IconSymbol name="person.2.fill" size={20} color={colors.primary} />
+            <Text style={[commonStyles.buttonTextOutline, styles.actionButtonText]}>
+              Join Group
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={commonStyles.subtitle}>Your Groups</Text>
+          {userGroups.length === 0 ? (
+            <View style={styles.emptyState}>
+              <IconSymbol name="figure.strengthtraining.traditional" size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyStateText}>No groups yet</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Create or join a group to start working out together!
+              </Text>
+            </View>
+          ) : (
+            userGroups.map(group => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                onPress={() => handleGroupPress(group.id)}
+                memberCount={group.members.length}
+                workoutCount={group.workouts.length}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // backgroundColor handled dynamically
-  },
-  listContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  listContainerWithTabBar: {
-    paddingBottom: 100, // Extra padding for floating tab bar
-  },
-  demoCard: {
-    borderRadius: 12,
+  header: {
     padding: 16,
-    marginBottom: 12,
+    alignItems: 'center',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  demoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     justifyContent: 'center',
+    gap: 8,
+  },
+  actionButtonText: {
+    marginLeft: 0,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  emptyState: {
     alignItems: 'center',
-    marginRight: 16,
+    padding: 32,
+    marginHorizontal: 16,
   },
-  demoContent: {
-    flex: 1,
-  },
-  demoTitle: {
+  emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 4,
-    // color handled dynamically
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  demoDescription: {
+  emptyStateSubtext: {
     fontSize: 14,
-    lineHeight: 18,
-    // color handled dynamically
-  },
-  headerButtonContainer: {
-    padding: 6,
-  },
-  tryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  tryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    // color handled dynamically
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
